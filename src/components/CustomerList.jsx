@@ -9,7 +9,7 @@ import "ag-grid-community/styles/ag-theme-material.css";
 function CustomerList() {
   const [customers, setCustomers] = useState([]);
 
-  const columns = [
+  const [columnDefs] = useState([
     { field: "firstname", sortable: true, filter: true },
     { field: "lastname", sortable: true, filter: true },
     { field: "email", sortable: true, filter: true },
@@ -17,7 +17,7 @@ function CustomerList() {
     { field: "streetaddress", sortable: true, filter: true },
     { field: "postcode", sortable: true, filter: true },
     { field: "city", sortable: true, filter: true },
-  ];
+  ]);
 
   useEffect(() => {
     fetch(
@@ -48,42 +48,13 @@ function CustomerList() {
       >
         <AgGridReact
           rowData={customers}
-          columnDefs={columns}
+          columnDefs={columnDefs}
           pagination={true}
           paginationPageSize={10}
           paginationPageSizeSelector={[10, 20, 50, 100]}
         />
       </div>
     </div>
-    // <div>
-    //   <h2>Customers</h2>
-    //   <table>
-    //     <thead>
-    //       <tr>
-    //         <th>First Name</th>
-    //         <th>Last Name</th>
-    //         <th>Email</th>
-    //         <th>Phone</th>
-    //         <th>Address</th>
-    //         <th>Postcode</th>
-    //         <th>City</th>
-    //       </tr>
-    //     </thead>
-    //     <tbody>
-    //       {customers?.map((customer) => (
-    //         <tr key={customer._links.customer.href.split("/").pop()}>
-    //           <td>{customer.firstname}</td>
-    //           <td>{customer.lastname}</td>
-    //           <td>{customer.email}</td>
-    //           <td>{customer.phone}</td>
-    //           <td>{customer.streetaddress}</td>
-    //           <td>{customer.postcode}</td>
-    //           <td>{customer.city}</td>
-    //         </tr>
-    //       ))}
-    //     </tbody>
-    //   </table>
-    // </div>
   );
 }
 

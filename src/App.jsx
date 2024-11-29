@@ -1,7 +1,14 @@
+// src\App.jsx
+
+import { Outlet } from "react-router-dom";
+
+import Navbar from "./components/Navbar";
+
 function App() {
   return (
     <div>
-      <h1>Personal Trainer</h1>
+      <Navbar />
+      <Outlet />
     </div>
   );
 }

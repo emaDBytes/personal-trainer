@@ -1,15 +1,24 @@
 // src\App.jsx
 
-import { Outlet } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 
-import Navbar from "./components/Navbar";
+import CustomerList from "./components/CustomerList";
+import TrainingList from "./components/TrainingList";
+import TopBar from "./components/AppBar";
+
+import { Container } from "@mui/material";
 
 function App() {
   return (
-    <div>
-      <Navbar />
-      <Outlet />
-    </div>
+    <>
+      <TopBar />
+      <Container>
+        <Routes>
+          <Route path="/" element={<CustomerList />} />
+          <Route path="/trainings" element={<TrainingList />} />
+        </Routes>
+      </Container>
+    </>
   );
 }
 

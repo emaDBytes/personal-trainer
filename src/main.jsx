@@ -1,8 +1,8 @@
 // src\main.jsx
 
 import React from "react";
-import ReactDOM from "react-dom/client";
 
+import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 
 import App from "./App.jsx";
@@ -15,6 +15,7 @@ const router = createBrowserRouter([
   {
     path: "/",
     element: <App />,
+    errorElement: <div>Error: Page Not Found</div>,
     children: [
       {
         element: <CustomerList />,
@@ -34,6 +35,6 @@ const router = createBrowserRouter([
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <RouterProvider router={router}></RouterProvider>
+    <RouterProvider router={router} />
   </React.StrictMode>
 );

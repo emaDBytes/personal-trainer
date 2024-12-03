@@ -10,6 +10,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
+import FitnessCenterIcon from "@mui/icons-material/FitnessCenter";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -19,6 +20,10 @@ import DialogTitle from "@mui/material/DialogTitle";
 import TextField from "@mui/material/TextField";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import dayjs from "dayjs";
 
 function CustomerList() {
   const [customers, setCustomers] = useState([]);
@@ -28,6 +33,13 @@ function CustomerList() {
   const [editCustomer, setEditCustomer] = useState(null);
   const [deleteCustomer, setDeleteCustomer] = useState(null);
   const [error, setError] = useState("");
+  const [openTraining, setOpenTraining] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [newTraining, setNewTraining] = useState({
+    date: dayjs(),
+    duration: "",
+    activity: "",
+  });
   const [newCustomer, setNewCustomer] = useState({
     firstname: "",
     lastname: "",
@@ -188,18 +200,100 @@ function CustomerList() {
       });
   };
 
+  const handleAddTraining = (customer) => {
+    setSelectedCustomer(customer);
+    setOpenTraining(true);
+  };
+
+  const handleTrainingClose = () => {
+    setOpenTraining(false);
+    setSelectedCustomer(null);
+    setNewTraining({
+      date: dayjs(),
+      duration: "",
+      activity: "",
+    });
+  };
+
+  const handleTrainingChange = (event) => {
+    setNewTraining({
+      ...newTraining,
+      [event.target.name]: event.target.value,
+    });
+  };
+
+  const handleDateChange = (newDate) => {
+    setNewTraining({
+      ...newTraining,
+      date: newDate,
+    });
+  };
+
+  const handleTrainingSave = () => {
+    // First check if we have all required data
+    if (!selectedCustomer?._links?.self?.href) {
+      setError("No customer link found");
+      return;
+    }
+
+    const trainingData = {
+      date: newTraining.date.toISOString(), // Convert the date to ISO format
+      duration: newTraining.duration,
+      activity: newTraining.activity,
+      customer: selectedCustomer._links.self.href,
+    };
+
+    fetch(
+      "https://customer-rest-service-frontend-personaltrainer.2.rahtiapp.fi/api/trainings",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(trainingData),
+      }
+    )
+      .then((response) => {
+        if (!response.ok)
+          throw new Error("Error adding training: " + response.statusText);
+
+        // Close the dialog and reset form
+        handleTrainingClose();
+        // Show success message
+        setError("Training added successfully"); // You might want to create a separate success message state
+      })
+      .catch((err) => {
+        console.error(err);
+        setError("Error adding training");
+      });
+  };
+
   const [columnDefs] = useState([
-    { field: "firstname", sortable: true, filter: true },
-    { field: "lastname", sortable: true, filter: true },
-    { field: "email", sortable: true, filter: true },
-    { field: "phone", sortable: true, filter: true },
-    { field: "streetaddress", sortable: true, filter: true },
-    { field: "postcode", sortable: true, filter: true },
-    { field: "city", sortable: true, filter: true },
+    { field: "firstname", sortable: true, filter: true, width: 130 },
+    { field: "lastname", sortable: true, filter: true, width: 130 },
+    { field: "email", sortable: true, filter: true, width: 200 },
+    { field: "phone", sortable: true, filter: true, width: 130 },
+    { field: "streetaddress", sortable: true, filter: true, width: 200 },
+    { field: "postcode", sortable: true, filter: true, width: 100 },
+    { field: "city", sortable: true, filter: true, width: 130 },
     {
       headerName: "",
       field: "id",
-      width: 90,
+      width: 70,
+      cellRenderer: (params) => (
+        <IconButton
+          onClick={() => handleAddTraining(params.data)}
+          size="small"
+          color="primary"
+        >
+          <FitnessCenterIcon />
+        </IconButton>
+      ),
+    },
+    {
+      headerName: "",
+      field: "id",
+      width: 70,
       cellRenderer: (params) => (
         <IconButton
           onClick={() => handleEditOpen(params.data)}
@@ -213,7 +307,7 @@ function CustomerList() {
     {
       headerName: "",
       field: "id",
-      width: 90,
+      width: 70,
       cellRenderer: (params) => (
         <IconButton
           onClick={() => handleDelete(params.data)}
@@ -257,11 +351,7 @@ function CustomerList() {
 
       <div
         className="ag-theme-material"
-        style={{
-          height: "70vh",
-          width: "100%",
-          margin: "auto",
-        }}
+        style={{ height: 600, width: "95%", margin: "auto" }}
       >
         <AgGridReact
           rowData={customers}
@@ -269,6 +359,14 @@ function CustomerList() {
           pagination={true}
           paginationPageSize={10}
           paginationPageSizeSelector={[10, 20, 50, 100]}
+          domLayout="autoHeight"
+          suppressColumnVirtualisation={true}
+          onGridReady={(params) => {
+            params.api.sizeColumnsToFit();
+          }}
+          onFirstDataRendered={(params) => {
+            params.api.sizeColumnsToFit();
+          }}
         />
       </div>
 
@@ -444,6 +542,51 @@ function CustomerList() {
         <DialogActions>
           <Button onClick={handleEditClose}>Cancel</Button>
           <Button onClick={handleUpdate}>Save</Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={openTraining}
+        onClose={handleTrainingClose}
+        aria-labelledby="add-training-dialog-title"
+      >
+        <DialogTitle id="add-training-dialog-title">
+          Add Training for {selectedCustomer?.firstname}{" "}
+          {selectedCustomer?.lastname}
+        </DialogTitle>
+        <DialogContent>
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DateTimePicker
+              label="Date and Time"
+              value={newTraining.date}
+              onChange={handleDateChange}
+              fullWidth
+              sx={{ width: "100%", mt: 2 }}
+            />
+          </LocalizationProvider>
+          <TextField
+            margin="dense"
+            name="activity"
+            value={newTraining.activity}
+            onChange={handleTrainingChange}
+            label="Activity"
+            fullWidth
+            variant="standard"
+          />
+          <TextField
+            margin="dense"
+            name="duration"
+            value={newTraining.duration}
+            onChange={handleTrainingChange}
+            label="Duration (minutes)"
+            fullWidth
+            variant="standard"
+            type="number"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleTrainingClose}>Cancel</Button>
+          <Button onClick={handleTrainingSave}>Save</Button>
         </DialogActions>
       </Dialog>
 

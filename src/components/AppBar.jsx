@@ -53,6 +53,20 @@ function TopBar() {
         >
           Calendar
         </Button>
+
+        <Button
+          color="inherit"
+          component={Link}
+          to="/statistics"
+          sx={{
+            color:
+              location.pathname === "/statistics"
+                ? "#fff"
+                : "rgba(255, 255, 255, 0.7)",
+          }}
+        >
+          Statistics
+        </Button>
       </Toolbar>
     </AppBar>
   );

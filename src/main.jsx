@@ -9,6 +9,7 @@ import App from "./App.jsx";
 import CustomerList from "./components/CustomerList.jsx";
 import TrainingList from "./components/TrainingList.jsx";
 import CalendarView from "./components/CalendarView.jsx";
+import StatisticsView from "./components/StatisticsView.jsx";
 
 import "./index.css";
 
@@ -33,6 +34,10 @@ const router = createBrowserRouter([
       {
         path: "calendar",
         element: <CalendarView />,
+      },
+      {
+        path: "statistics",
+        element: <StatisticsView />,
       },
     ],
   },

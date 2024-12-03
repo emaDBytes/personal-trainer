@@ -2,19 +2,23 @@
 
 import { Outlet } from "react-router-dom";
 
-import TopBar from "./components/AppBar";
-
 import { Container } from "@mui/material";
 
-function App() {
+import TopBar from "./components/AppBar";
+
+// The main App component that renders the top bar and content
+const App = () => {
   return (
     <>
+      {/* Render the top navigation bar */}
       <TopBar />
+
+      {/* Render the main content area */}
       <Container>
         <Outlet />
       </Container>
     </>
   );
-}
+};
 
 export default App;

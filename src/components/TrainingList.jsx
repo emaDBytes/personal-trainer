@@ -6,29 +6,54 @@ import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-material.css";
 
-import DeleteIcon from "@mui/icons-material/Delete";
-import IconButton from "@mui/material/IconButton";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
-import Button from "@mui/material/Button";
-import Snackbar from "@mui/material/Snackbar";
-import Alert from "@mui/material/Alert";
+import {
+  IconButton,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  Button,
+  Snackbar,
+  Alert,
+  Typography,
+  Paper,
+  Box,
+  CircularProgress,
+  Stack,
+} from "@mui/material";
 
+import DeleteIcon from "@mui/icons-material/Delete";
+import FitnessCenterIcon from "@mui/icons-material/FitnessCenter";
+
+/**
+ * The TrainingList component displays a list of training sessions in a
+ * highly customizable and interactive ag-grid table.
+ */
 function TrainingList() {
+  // State variables for training data, delete dialog, and error handling
   const [trainings, setTrainings] = useState([]);
   const [open, setOpen] = useState(false);
   const [deleteTraining, setDeleteTraining] = useState(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
+  // Fetch training data on component mount
   useEffect(() => {
     fetchTrainings();
   }, []);
 
+  /**
+   * Configuration for the ag-grid table columns.
+   * Includes fields for activity, date, duration, customer, and a delete button.
+   */
   const [columnDefs] = useState([
-    { field: "activity", sortable: true, filter: true },
+    {
+      field: "activity",
+      sortable: true,
+      filter: true,
+      width: 150,
+    },
     {
       field: "date",
       headerName: "Date",
@@ -44,8 +69,15 @@ function TrainingList() {
       },
       sortable: true,
       filter: true,
+      width: 180,
     },
-    { field: "duration", sortable: true, filter: true },
+    {
+      field: "duration",
+      headerName: "Duration (min)",
+      sortable: true,
+      filter: true,
+      width: 150,
+    },
     {
       field: "customer",
       headerName: "Customer",
@@ -55,6 +87,7 @@ function TrainingList() {
           : "",
       sortable: true,
       filter: true,
+      width: 180,
     },
     {
       headerName: "",
@@ -72,16 +105,27 @@ function TrainingList() {
     },
   ]);
 
+  /**
+   * Handles the delete button click by setting the deleteTraining state
+   * and opening the confirmation dialog.
+   */
   const handleDelete = (training) => {
     setDeleteTraining(training);
     setOpen(true);
   };
 
+  /**
+   * Closes the delete confirmation dialog and resets the deleteTraining state.
+   */
   const handleClose = () => {
     setOpen(false);
     setDeleteTraining(null);
   };
 
+  /**
+   * Handles the confirmation of the delete operation. Sends a DELETE request
+   * to the API and refreshes the training list after a successful deletion.
+   */
   const handleConfirmDelete = () => {
     if (!deleteTraining?._links?.self?.href) {
       setError("No training URL found");
@@ -93,7 +137,6 @@ function TrainingList() {
         if (!response.ok)
           throw new Error("Error in deletion: " + response.statusText);
 
-        // Refresh the grid data
         fetchTrainings();
         handleClose();
       })
@@ -103,7 +146,12 @@ function TrainingList() {
       });
   };
 
+  /**
+   * Fetches the list of training sessions from the API and associates the
+   * customer data with each training.
+   */
   const fetchTrainings = () => {
+    setLoading(true);
     fetch(
       "https://customer-rest-service-frontend-personaltrainer.2.rahtiapp.fi/api/trainings"
     )
@@ -121,26 +169,74 @@ function TrainingList() {
           })
         );
         setTrainings(trainingsWithCustomers);
+        setLoading(false);
       })
       .catch((err) => {
         console.error(err);
         setError("Error fetching trainings");
+        setLoading(false);
       });
   };
 
   return (
-    <div
-      className="ag-theme-material"
-      style={{ height: 600, width: "90%", margin: "auto" }}
-    >
-      <AgGridReact
-        rowData={trainings}
-        columnDefs={columnDefs}
-        pagination={true}
-        paginationPageSize={10}
-        paginationPageSizeSelector={[10, 20, 50, 100]}
-      />
+    <Box sx={{ p: 3 }}>
+      {/* Header section */}
+      <Stack direction="row" alignItems="center" spacing={1} mb={3}>
+        <FitnessCenterIcon sx={{ fontSize: 35, color: "primary.main" }} />
+        <Typography variant="h4" component="h1">
+          Training Sessions
+        </Typography>
+      </Stack>
 
+      {/* Main content */}
+      <Paper
+        elevation={2}
+        sx={{
+          p: 2,
+          borderRadius: 2,
+          height: "100%",
+        }}
+      >
+        {loading ? (
+          // Display a loading spinner while data is being fetched
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            minHeight="400px"
+          >
+            <CircularProgress />
+          </Box>
+        ) : (
+          // Render the ag-grid table with the fetched training data
+          <div
+            className="ag-theme-material"
+            style={{
+              height: 600,
+              width: "100%",
+              margin: "auto",
+            }}
+          >
+            <AgGridReact
+              rowData={trainings}
+              columnDefs={columnDefs}
+              pagination={true}
+              paginationPageSize={10}
+              paginationPageSizeSelector={[10, 20, 50, 100]}
+              domLayout="autoHeight"
+              suppressColumnVirtualisation={true}
+              onGridReady={(params) => {
+                params.api.sizeColumnsToFit();
+              }}
+              onFirstDataRendered={(params) => {
+                params.api.sizeColumnsToFit();
+              }}
+            />
+          </div>
+        )}
+      </Paper>
+
+      {/* Delete Confirmation Dialog */}
       <Dialog
         open={open}
         onClose={handleClose}
@@ -161,6 +257,7 @@ function TrainingList() {
         </DialogActions>
       </Dialog>
 
+      {/* Error Snackbar */}
       <Snackbar
         open={Boolean(error)}
         autoHideDuration={6000}
@@ -174,7 +271,7 @@ function TrainingList() {
           {error}
         </Alert>
       </Snackbar>
-    </div>
+    </Box>
   );
 }
 

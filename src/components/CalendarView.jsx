@@ -3,18 +3,40 @@
 import { useState, useEffect } from "react";
 
 import FullCalendar from "@fullcalendar/react";
+
 import dayGridPlugin from "@fullcalendar/daygrid";
+
 import timeGridPlugin from "@fullcalendar/timegrid";
+
 import interactionPlugin from "@fullcalendar/interaction";
 
-function CalendarView() {
-  const [events, setEvents] = useState([]);
+import {
+  Typography,
+  Paper,
+  Box,
+  CircularProgress,
+  Stack,
+  Snackbar,
+  Alert,
+} from "@mui/material";
 
+import CalendarMonthIcon from "@mui/icons-material/CalendarMonth";
+
+// The CalendarView component displays a calendar of training sessions
+function CalendarView() {
+  // State for storing training events, loading status, and error messages
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // Fetch training data on component mount
   useEffect(() => {
     fetchTrainings();
   }, []);
 
+  // Fetch training data from the API
   const fetchTrainings = () => {
+    setLoading(true);
     fetch(
       "https://customer-rest-service-frontend-personaltrainer.2.rahtiapp.fi/api/trainings"
     )
@@ -24,6 +46,7 @@ function CalendarView() {
         return response.json();
       })
       .then(async (responseData) => {
+        // Fetch customer data for each training session
         const trainingsWithCustomers = await Promise.all(
           responseData._embedded.trainings.map(async (training) => {
             const customerResponse = await fetch(training._links.customer.href);
@@ -43,28 +66,92 @@ function CalendarView() {
           })
         );
         setEvents(trainingsWithCustomers);
+        setLoading(false);
       })
-      .catch((err) => console.error(err));
+      .catch((err) => {
+        console.error(err);
+        setError("Error fetching training sessions");
+        setLoading(false);
+      });
   };
 
   return (
-    <div style={{ marginTop: 20, height: "80vh" }}>
-      <FullCalendar
-        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-        initialView="dayGridMonth"
-        headerToolbar={{
-          left: "prev,next today",
-          center: "title",
-          right: "dayGridMonth,timeGridWeek,timeGridDay",
+    <Box sx={{ p: 3 }}>
+      {/* Header section */}
+      <Stack direction="row" alignItems="center" spacing={1} mb={3}>
+        <CalendarMonthIcon sx={{ fontSize: 35, color: "primary.main" }} />
+        <Typography variant="h4" component="h1">
+          Training Calendar
+        </Typography>
+      </Stack>
+
+      {/* Main content */}
+      <Paper
+        elevation={2}
+        sx={{
+          p: 2,
+          borderRadius: 2,
+          height: "80vh",
+          backgroundColor: "#fff",
         }}
-        events={events}
-        eventTimeFormat={{
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        }}
-      />
-    </div>
+      >
+        {loading ? (
+          // Show a loading spinner if data is being fetched
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            minHeight="400px"
+          >
+            <CircularProgress />
+          </Box>
+        ) : (
+          // Render the FullCalendar component with the fetched events
+          <FullCalendar
+            plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+            initialView="dayGridMonth"
+            headerToolbar={{
+              left: "prev,next today",
+              center: "title",
+              right: "dayGridMonth,timeGridWeek,timeGridDay",
+            }}
+            events={events}
+            eventTimeFormat={{
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            }}
+            height="100%"
+            // Additional styling for better visual appearance
+            eventDisplay="block"
+            eventColor="#1976d2" // MUI primary color
+            eventTextColor="#fff"
+            dayMaxEvents={true} // Allow "more" link when too many events
+            // Custom styles for the calendar
+            eventDidMount={(info) => {
+              info.el.style.fontSize = "0.875rem";
+              info.el.style.padding = "2px 4px";
+              info.el.style.borderRadius = "4px";
+            }}
+          />
+        )}
+      </Paper>
+
+      {/* Error Snackbar */}
+      <Snackbar
+        open={Boolean(error)}
+        autoHideDuration={6000}
+        onClose={() => setError("")}
+      >
+        <Alert
+          onClose={() => setError("")}
+          severity="error"
+          sx={{ width: "100%" }}
+        >
+          {error}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 }
 

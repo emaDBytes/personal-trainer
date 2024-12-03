@@ -1,50 +1,91 @@
 // src\components\CustomerList.jsx
 
-import { useState, useEffect } from "react";
-import { AgGridReact } from "ag-grid-react";
+/**
+ * CustomerList Component
+ *
+ * A comprehensive customer management interface that provides CRUD operations
+ * for customer data and allows adding training sessions to customers.
+ *
+ * Features:
+ * - Display customers in a sortable/filterable grid
+ * - Add/Edit/Delete customer operations
+ * - Add training sessions to customers
+ * - Export customer data to CSV
+ * - Loading states and error handling
+ *
+ * @component
+ */
 
+// React and hooks
+import { useState, useEffect } from "react";
+
+// Grid component and styles
+import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-material.css";
 
-import DeleteIcon from "@mui/icons-material/Delete";
-import AddIcon from "@mui/icons-material/Add";
-import IconButton from "@mui/material/IconButton";
-import EditIcon from "@mui/icons-material/Edit";
-import FitnessCenterIcon from "@mui/icons-material/FitnessCenter";
-import FileDownloadIcon from "@mui/icons-material/FileDownload";
-import Button from "@mui/material/Button";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogContentText from "@mui/material/DialogContentText";
-import DialogTitle from "@mui/material/DialogTitle";
-import TextField from "@mui/material/TextField";
-import Snackbar from "@mui/material/Snackbar";
-import Alert from "@mui/material/Alert";
+// Material-UI components
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  IconButton,
+  TextField,
+  Snackbar,
+  Alert,
+  Typography,
+  Paper,
+  Box,
+  CircularProgress,
+  Stack,
+} from "@mui/material";
+
+// Material-UI icons
+import {
+  Delete as DeleteIcon,
+  Add as AddIcon,
+  Edit as EditIcon,
+  FitnessCenter as FitnessCenterIcon,
+  FileDownload as FileDownloadIcon,
+} from "@mui/icons-material";
+
+// Date handling
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-
 import dayjs from "dayjs";
 
+// Export utilities
 import { utils as XLSXUtils, write as XLSXWrite } from "xlsx";
 import { saveAs } from "file-saver";
 
+// API configuration
+const API_URL =
+  "https://customer-rest-service-frontend-personaltrainer.2.rahtiapp.fi/api";
+
 function CustomerList() {
+  // =============== State Definitions ===============
+
+  // Main data and UI states
   const [customers, setCustomers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  // Dialog control states
   const [open, setOpen] = useState(false);
   const [openAdd, setOpenAdd] = useState(false);
   const [openEdit, setOpenEdit] = useState(false);
+  const [openTraining, setOpenTraining] = useState(false);
+
+  // Selected item states
   const [editCustomer, setEditCustomer] = useState(null);
   const [deleteCustomer, setDeleteCustomer] = useState(null);
-  const [error, setError] = useState("");
-  const [openTraining, setOpenTraining] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [newTraining, setNewTraining] = useState({
-    date: dayjs(),
-    duration: "",
-    activity: "",
-  });
+
+  // Form data states
   const [newCustomer, setNewCustomer] = useState({
     firstname: "",
     lastname: "",
@@ -55,8 +96,142 @@ function CustomerList() {
     city: "",
   });
 
+  const [newTraining, setNewTraining] = useState({
+    date: dayjs(),
+    duration: "",
+    activity: "",
+  });
+
+  // =============== Grid Configuration ===============
+
+  const [columnDefs] = useState([
+    {
+      field: "firstname",
+      headerName: "First Name",
+      sortable: true,
+      filter: true,
+      width: 130,
+    },
+    {
+      field: "lastname",
+      headerName: "Last Name",
+      sortable: true,
+      filter: true,
+      width: 130,
+    },
+    {
+      field: "email",
+      headerName: "Email",
+      sortable: true,
+      filter: true,
+      width: 200,
+    },
+    {
+      field: "phone",
+      headerName: "Phone",
+      sortable: true,
+      filter: true,
+      width: 130,
+    },
+    {
+      field: "streetaddress",
+      headerName: "Address",
+      sortable: true,
+      filter: true,
+      width: 200,
+    },
+    {
+      field: "postcode",
+      headerName: "Postcode",
+      sortable: true,
+      filter: true,
+      width: 100,
+    },
+    {
+      field: "city",
+      headerName: "City",
+      sortable: true,
+      filter: true,
+      width: 130,
+    },
+    {
+      headerName: "Training",
+      width: 70,
+      cellRenderer: (params) => (
+        <IconButton
+          onClick={() => handleAddTraining(params.data)}
+          size="small"
+          color="primary"
+          title="Add Training"
+        >
+          <FitnessCenterIcon />
+        </IconButton>
+      ),
+    },
+    {
+      headerName: "Edit",
+      width: 70,
+      cellRenderer: (params) => (
+        <IconButton
+          onClick={() => handleEditOpen(params.data)}
+          size="small"
+          color="primary"
+          title="Edit Customer"
+        >
+          <EditIcon />
+        </IconButton>
+      ),
+    },
+    {
+      headerName: "Delete",
+      width: 70,
+      cellRenderer: (params) => (
+        <IconButton
+          onClick={() => handleDelete(params.data)}
+          size="small"
+          color="error"
+          title="Delete Customer"
+        >
+          <DeleteIcon />
+        </IconButton>
+      ),
+    },
+  ]);
+
+  // =============== Data Fetching ===============
+
+  /**
+   * Fetches customers from the API
+   * Includes error handling and loading state management
+   */
+  const fetchCustomers = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`${API_URL}/customers`);
+      if (!response.ok)
+        throw new Error("Error in fetch: " + response.statusText);
+
+      const data = await response.json();
+      setCustomers(data._embedded.customers);
+    } catch (err) {
+      console.error(err);
+      setError("Error fetching customers");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchCustomers();
+  }, []);
+
+  // =============== Customer CRUD Handlers ===============
+
+  /**
+   * Handles customer deletion
+   */
   const handleDelete = (customer) => {
-    console.log("Delete clicked for customer:", customer);
     setDeleteCustomer(customer);
     setOpen(true);
   };
@@ -66,46 +241,29 @@ function CustomerList() {
     setDeleteCustomer(null);
   };
 
-  const handleConfirmDelete = () => {
-    console.log("Confirmed delete for customer:", deleteCustomer);
+  const handleConfirmDelete = async () => {
     if (!deleteCustomer?._links?.self?.href) {
       setError("No customer URL found");
       return;
     }
 
-    fetch(deleteCustomer._links.self.href, { method: "DELETE" })
-      .then((response) => {
-        if (!response.ok)
-          throw new Error("Error in deletion: " + response.statusText);
-
-        // Refresh the grid data
-        fetchCustomers();
-        handleClose();
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Error deleting customer");
+    try {
+      const response = await fetch(deleteCustomer._links.self.href, {
+        method: "DELETE",
       });
+      if (!response.ok) throw new Error("Error in deletion");
+
+      await fetchCustomers();
+      handleClose();
+    } catch (err) {
+      console.error(err);
+      setError("Error deleting customer");
+    }
   };
 
-  const fetchCustomers = () => {
-    fetch(
-      "https://customer-rest-service-frontend-personaltrainer.2.rahtiapp.fi/api/customers"
-    )
-      .then((response) => {
-        if (!response.ok)
-          throw new Error("Error in fetch: " + response.statusText);
-        return response.json();
-      })
-      .then((data) => {
-        setCustomers(data._embedded.customers);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Error fetching customers");
-      });
-  };
-
+  /**
+   * Handles customer addition
+   */
   const handleInputChange = (event) => {
     setNewCustomer({
       ...newCustomer,
@@ -113,9 +271,7 @@ function CustomerList() {
     });
   };
 
-  const handleAddOpen = () => {
-    setOpenAdd(true);
-  };
+  const handleAddOpen = () => setOpenAdd(true);
 
   const handleAddClose = () => {
     setOpenAdd(false);
@@ -130,30 +286,27 @@ function CustomerList() {
     });
   };
 
-  const handleSave = () => {
-    fetch(
-      "https://customer-rest-service-frontend-personaltrainer.2.rahtiapp.fi/api/customers",
-      {
+  const handleSave = async () => {
+    try {
+      const response = await fetch(`${API_URL}/customers`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newCustomer),
-      }
-    )
-      .then((response) => {
-        if (!response.ok)
-          throw new Error("Error in addition: " + response.statusText);
-
-        fetchCustomers();
-        handleAddClose();
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Error adding customer");
       });
+
+      if (!response.ok) throw new Error("Error in addition");
+
+      await fetchCustomers();
+      handleAddClose();
+    } catch (err) {
+      console.error(err);
+      setError("Error adding customer");
+    }
   };
 
+  /**
+   * Handles customer editing
+   */
   const handleEditOpen = (customer) => {
     setEditCustomer(customer);
     setOpenEdit(true);
@@ -171,39 +324,30 @@ function CustomerList() {
     });
   };
 
-  const handleUpdate = () => {
+  const handleUpdate = async () => {
     if (!editCustomer?._links?.self?.href) {
       setError("No customer URL found");
       return;
     }
 
-    fetch(editCustomer._links.self.href, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        firstname: editCustomer.firstname,
-        lastname: editCustomer.lastname,
-        email: editCustomer.email,
-        phone: editCustomer.phone,
-        streetaddress: editCustomer.streetaddress,
-        postcode: editCustomer.postcode,
-        city: editCustomer.city,
-      }),
-    })
-      .then((response) => {
-        if (!response.ok)
-          throw new Error("Error in update: " + response.statusText);
-
-        fetchCustomers();
-        handleEditClose();
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Error updating customer");
+    try {
+      const response = await fetch(editCustomer._links.self.href, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editCustomer),
       });
+
+      if (!response.ok) throw new Error("Error in update");
+
+      await fetchCustomers();
+      handleEditClose();
+    } catch (err) {
+      console.error(err);
+      setError("Error updating customer");
+    }
   };
+
+  // =============== Training Handlers ===============
 
   const handleAddTraining = (customer) => {
     setSelectedCustomer(customer);
@@ -234,189 +378,147 @@ function CustomerList() {
     });
   };
 
-  const handleTrainingSave = () => {
-    // First check if we have all required data
+  const handleTrainingSave = async () => {
     if (!selectedCustomer?._links?.self?.href) {
       setError("No customer link found");
       return;
     }
 
-    const trainingData = {
-      date: newTraining.date.toISOString(), // Convert the date to ISO format
-      duration: newTraining.duration,
-      activity: newTraining.activity,
-      customer: selectedCustomer._links.self.href,
-    };
-
-    fetch(
-      "https://customer-rest-service-frontend-personaltrainer.2.rahtiapp.fi/api/trainings",
-      {
+    try {
+      const response = await fetch(`${API_URL}/trainings`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(trainingData),
-      }
-    )
-      .then((response) => {
-        if (!response.ok)
-          throw new Error("Error adding training: " + response.statusText);
-
-        // Close the dialog and reset form
-        handleTrainingClose();
-        // Show success message
-        setError("Training added successfully"); // You might want to create a separate success message state
-      })
-      .catch((err) => {
-        console.error(err);
-        setError("Error adding training");
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: newTraining.date.toISOString(),
+          duration: newTraining.duration,
+          activity: newTraining.activity,
+          customer: selectedCustomer._links.self.href,
+        }),
       });
+
+      if (!response.ok) throw new Error("Error adding training");
+
+      handleTrainingClose();
+      setError("Training added successfully");
+    } catch (err) {
+      console.error(err);
+      setError("Error adding training");
+    }
   };
 
-  const exportToCSV = () => {
-    // Filter out unnecessary data and links
-    const exportData = customers.map((customer) => ({
-      firstname: customer.firstname,
-      lastname: customer.lastname,
-      email: customer.email,
-      phone: customer.phone,
-      streetaddress: customer.streetaddress,
-      postcode: customer.postcode,
-      city: customer.city,
-    }));
+  // =============== Export Functionality ===============
 
-    // Create worksheet and workbook
+  const exportToCSV = () => {
+    const exportData = customers.map(
+      ({
+        firstname,
+        lastname,
+        email,
+        phone,
+        streetaddress,
+        postcode,
+        city,
+      }) => ({
+        firstname,
+        lastname,
+        email,
+        phone,
+        streetaddress,
+        postcode,
+        city,
+      })
+    );
+
     const ws = XLSXUtils.json_to_sheet(exportData);
     const wb = XLSXUtils.book_new();
     XLSXUtils.book_append_sheet(wb, ws, "Customers");
 
-    // Generate buffer
     const excelBuffer = XLSXWrite(wb, { bookType: "csv", type: "array" });
-
-    // Create blob and save file
     const data = new Blob([excelBuffer], { type: "application/octet-stream" });
     saveAs(data, "customers.csv");
   };
 
-  const [columnDefs] = useState([
-    { field: "firstname", sortable: true, filter: true, width: 130 },
-    { field: "lastname", sortable: true, filter: true, width: 130 },
-    { field: "email", sortable: true, filter: true, width: 200 },
-    { field: "phone", sortable: true, filter: true, width: 130 },
-    { field: "streetaddress", sortable: true, filter: true, width: 200 },
-    { field: "postcode", sortable: true, filter: true, width: 100 },
-    { field: "city", sortable: true, filter: true, width: 130 },
-    {
-      headerName: "",
-      field: "id",
-      width: 70,
-      cellRenderer: (params) => (
-        <IconButton
-          onClick={() => handleAddTraining(params.data)}
-          size="small"
-          color="primary"
-        >
-          <FitnessCenterIcon />
-        </IconButton>
-      ),
-    },
-    {
-      headerName: "",
-      field: "id",
-      width: 70,
-      cellRenderer: (params) => (
-        <IconButton
-          onClick={() => handleEditOpen(params.data)}
-          size="small"
-          color="primary"
-        >
-          <EditIcon />
-        </IconButton>
-      ),
-    },
-    {
-      headerName: "",
-      field: "id",
-      width: 70,
-      cellRenderer: (params) => (
-        <IconButton
-          onClick={() => handleDelete(params.data)}
-          size="small"
-          color="error"
-        >
-          <DeleteIcon />
-        </IconButton>
-      ),
-    },
-  ]);
-
-  useEffect(() => {
-    fetch(
-      "https://customer-rest-service-frontend-personaltrainer.2.rahtiapp.fi/api/customers"
-    )
-      .then((response) => {
-        if (!response.ok)
-          throw new Error("Error in fetch: " + response.statusText);
-
-        return response.json();
-      })
-      .then((responseData) => {
-        setCustomers(responseData._embedded.customers);
-      })
-      .catch((err) => console.error(err));
-  }, []);
-
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Customers</h2>
-
-      <div style={{ marginBottom: 20, display: "flex", gap: "10px" }}>
-        <Button
-          variant="contained"
-          onClick={handleAddOpen}
-          startIcon={<AddIcon />}
-        >
-          Add Customer
-        </Button>
-        <Button
-          variant="outlined"
-          onClick={exportToCSV}
-          startIcon={<FileDownloadIcon />}
-        >
-          Export to CSV
-        </Button>
-      </div>
-
-      <div
-        className="ag-theme-material"
-        style={{ height: 600, width: "95%", margin: "auto" }}
+    <Box sx={{ p: 3 }}>
+      {/* ========== Header Section ========== */}
+      <Stack
+        direction="row"
+        alignItems="center"
+        justifyContent="space-between"
+        mb={3}
       >
-        <AgGridReact
-          rowData={customers}
-          columnDefs={columnDefs}
-          pagination={true}
-          paginationPageSize={10}
-          paginationPageSizeSelector={[10, 20, 50, 100]}
-          domLayout="autoHeight"
-          suppressColumnVirtualisation={true}
-          onGridReady={(params) => {
-            params.api.sizeColumnsToFit();
-          }}
-          onFirstDataRendered={(params) => {
-            params.api.sizeColumnsToFit();
-          }}
-        />
-      </div>
+        <Typography variant="h4" component="h1">
+          Customer Management
+        </Typography>
 
+        <Stack direction="row" spacing={2}>
+          <Button
+            variant="contained"
+            onClick={handleAddOpen}
+            startIcon={<AddIcon />}
+            size="large"
+          >
+            Add Customer
+          </Button>
+          <Button
+            variant="outlined"
+            onClick={exportToCSV}
+            startIcon={<FileDownloadIcon />}
+            size="large"
+          >
+            Export to CSV
+          </Button>
+        </Stack>
+      </Stack>
+
+      {/* ========== Main Grid Section ========== */}
+      <Paper elevation={2} sx={{ p: 2, borderRadius: 2, height: "100%" }}>
+        {loading ? (
+          <Box
+            display="flex"
+            justifyContent="center"
+            alignItems="center"
+            minHeight="400px"
+          >
+            <CircularProgress />
+          </Box>
+        ) : (
+          <div
+            className="ag-theme-material"
+            style={{
+              height: 600,
+              width: "100%",
+              margin: "auto",
+            }}
+          >
+            <AgGridReact
+              rowData={customers}
+              columnDefs={columnDefs}
+              pagination={true}
+              paginationPageSize={10}
+              paginationPageSizeSelector={[10, 20, 50, 100]}
+              domLayout="autoHeight"
+              suppressColumnVirtualisation={true}
+              onGridReady={(params) => {
+                params.api.sizeColumnsToFit();
+              }}
+              onFirstDataRendered={(params) => {
+                params.api.sizeColumnsToFit();
+              }}
+            />
+          </div>
+        )}
+      </Paper>
+
+      {/* ========== Dialog Section - Customer Delete ========== */}
       <Dialog
         open={open}
         onClose={handleClose}
-        aria-labelledby="alert-dialog-title"
-        aria-describedby="alert-dialog-description"
+        aria-labelledby="delete-dialog-title"
       >
-        <DialogTitle id="alert-dialog-title">{"Confirm Delete"}</DialogTitle>
+        <DialogTitle id="delete-dialog-title">Confirm Delete</DialogTitle>
         <DialogContent>
-          <DialogContentText id="alert-dialog-description">
+          <DialogContentText>
             Are you sure you want to delete {deleteCustomer?.firstname}{" "}
             {deleteCustomer?.lastname}?
           </DialogContentText>
@@ -429,205 +531,217 @@ function CustomerList() {
         </DialogActions>
       </Dialog>
 
+      {/* ========== Dialog Section - Add Customer ========== */}
       <Dialog
         open={openAdd}
         onClose={handleAddClose}
-        aria-labelledby="add-customer-dialog-title"
+        aria-labelledby="add-dialog-title"
+        maxWidth="sm"
+        fullWidth
       >
-        <DialogTitle id="add-customer-dialog-title">New Customer</DialogTitle>
+        <DialogTitle id="add-dialog-title">Add New Customer</DialogTitle>
         <DialogContent>
-          <TextField
-            margin="dense"
-            name="firstname"
-            value={newCustomer.firstname}
-            onChange={handleInputChange}
-            label="First Name"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="lastname"
-            value={newCustomer.lastname}
-            onChange={handleInputChange}
-            label="Last Name"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="email"
-            value={newCustomer.email}
-            onChange={handleInputChange}
-            label="Email"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="phone"
-            value={newCustomer.phone}
-            onChange={handleInputChange}
-            label="Phone"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="streetaddress"
-            value={newCustomer.streetaddress}
-            onChange={handleInputChange}
-            label="Street Address"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="postcode"
-            value={newCustomer.postcode}
-            onChange={handleInputChange}
-            label="Postcode"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="city"
-            value={newCustomer.city}
-            onChange={handleInputChange}
-            label="City"
-            fullWidth
-            variant="standard"
-          />
+          <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+            <TextField
+              name="firstname"
+              label="First Name"
+              value={newCustomer.firstname}
+              onChange={handleInputChange}
+              fullWidth
+              variant="outlined"
+            />
+            <TextField
+              name="lastname"
+              label="Last Name"
+              value={newCustomer.lastname}
+              onChange={handleInputChange}
+              fullWidth
+              variant="outlined"
+            />
+            <TextField
+              name="email"
+              label="Email"
+              value={newCustomer.email}
+              onChange={handleInputChange}
+              fullWidth
+              variant="outlined"
+              type="email"
+            />
+            <TextField
+              name="phone"
+              label="Phone"
+              value={newCustomer.phone}
+              onChange={handleInputChange}
+              fullWidth
+              variant="outlined"
+            />
+            <TextField
+              name="streetaddress"
+              label="Street Address"
+              value={newCustomer.streetaddress}
+              onChange={handleInputChange}
+              fullWidth
+              variant="outlined"
+            />
+            <TextField
+              name="postcode"
+              label="Postcode"
+              value={newCustomer.postcode}
+              onChange={handleInputChange}
+              fullWidth
+              variant="outlined"
+            />
+            <TextField
+              name="city"
+              label="City"
+              value={newCustomer.city}
+              onChange={handleInputChange}
+              fullWidth
+              variant="outlined"
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleAddClose}>Cancel</Button>
-          <Button onClick={handleSave}>Save</Button>
+          <Button onClick={handleSave} variant="contained" color="primary">
+            Save
+          </Button>
         </DialogActions>
       </Dialog>
 
+      {/* ========== Dialog Section - Edit Customer ========== */}
       <Dialog
         open={openEdit}
         onClose={handleEditClose}
-        aria-labelledby="edit-customer-dialog-title"
+        aria-labelledby="edit-dialog-title"
+        maxWidth="sm"
+        fullWidth
       >
-        <DialogTitle id="edit-customer-dialog-title">Edit Customer</DialogTitle>
+        <DialogTitle id="edit-dialog-title">Edit Customer</DialogTitle>
         <DialogContent>
-          <TextField
-            margin="dense"
-            name="firstname"
-            value={editCustomer?.firstname || ""}
-            onChange={handleEditChange}
-            label="First Name"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="lastname"
-            value={editCustomer?.lastname || ""}
-            onChange={handleEditChange}
-            label="Last Name"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="email"
-            value={editCustomer?.email || ""}
-            onChange={handleEditChange}
-            label="Email"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="phone"
-            value={editCustomer?.phone || ""}
-            onChange={handleEditChange}
-            label="Phone"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="streetaddress"
-            value={editCustomer?.streetaddress || ""}
-            onChange={handleEditChange}
-            label="Street Address"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="postcode"
-            value={editCustomer?.postcode || ""}
-            onChange={handleEditChange}
-            label="Postcode"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="city"
-            value={editCustomer?.city || ""}
-            onChange={handleEditChange}
-            label="City"
-            fullWidth
-            variant="standard"
-          />
+          <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+            <TextField
+              name="firstname"
+              label="First Name"
+              value={editCustomer?.firstname || ""}
+              onChange={handleEditChange}
+              fullWidth
+              variant="outlined"
+            />
+            <TextField
+              name="lastname"
+              label="Last Name"
+              value={editCustomer?.lastname || ""}
+              onChange={handleEditChange}
+              fullWidth
+              variant="outlined"
+            />
+            <TextField
+              name="email"
+              label="Email"
+              value={editCustomer?.email || ""}
+              onChange={handleEditChange}
+              fullWidth
+              variant="outlined"
+              type="email"
+            />
+            <TextField
+              name="phone"
+              label="Phone"
+              value={editCustomer?.phone || ""}
+              onChange={handleEditChange}
+              fullWidth
+              variant="outlined"
+            />
+            <TextField
+              name="streetaddress"
+              label="Street Address"
+              value={editCustomer?.streetaddress || ""}
+              onChange={handleEditChange}
+              fullWidth
+              variant="outlined"
+            />
+            <TextField
+              name="postcode"
+              label="Postcode"
+              value={editCustomer?.postcode || ""}
+              onChange={handleEditChange}
+              fullWidth
+              variant="outlined"
+            />
+            <TextField
+              name="city"
+              label="City"
+              value={editCustomer?.city || ""}
+              onChange={handleEditChange}
+              fullWidth
+              variant="outlined"
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleEditClose}>Cancel</Button>
-          <Button onClick={handleUpdate}>Save</Button>
+          <Button onClick={handleUpdate} variant="contained" color="primary">
+            Save Changes
+          </Button>
         </DialogActions>
       </Dialog>
 
+      {/* ========== Dialog Section - Add Training ========== */}
       <Dialog
         open={openTraining}
         onClose={handleTrainingClose}
-        aria-labelledby="add-training-dialog-title"
+        aria-labelledby="training-dialog-title"
+        maxWidth="sm"
+        fullWidth
       >
-        <DialogTitle id="add-training-dialog-title">
+        <DialogTitle id="training-dialog-title">
           Add Training for {selectedCustomer?.firstname}{" "}
           {selectedCustomer?.lastname}
         </DialogTitle>
         <DialogContent>
-          <LocalizationProvider dateAdapter={AdapterDayjs}>
-            <DateTimePicker
-              label="Date and Time"
-              value={newTraining.date}
-              onChange={handleDateChange}
+          <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 3 }}>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DateTimePicker
+                label="Date and Time"
+                value={newTraining.date}
+                onChange={handleDateChange}
+                renderInput={(params) => <TextField {...params} />}
+                fullWidth
+              />
+            </LocalizationProvider>
+            <TextField
+              name="activity"
+              label="Activity"
+              value={newTraining.activity}
+              onChange={handleTrainingChange}
               fullWidth
-              sx={{ width: "100%", mt: 2 }}
+              variant="outlined"
             />
-          </LocalizationProvider>
-          <TextField
-            margin="dense"
-            name="activity"
-            value={newTraining.activity}
-            onChange={handleTrainingChange}
-            label="Activity"
-            fullWidth
-            variant="standard"
-          />
-          <TextField
-            margin="dense"
-            name="duration"
-            value={newTraining.duration}
-            onChange={handleTrainingChange}
-            label="Duration (minutes)"
-            fullWidth
-            variant="standard"
-            type="number"
-          />
+            <TextField
+              name="duration"
+              label="Duration (minutes)"
+              value={newTraining.duration}
+              onChange={handleTrainingChange}
+              fullWidth
+              variant="outlined"
+              type="number"
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleTrainingClose}>Cancel</Button>
-          <Button onClick={handleTrainingSave}>Save</Button>
+          <Button
+            onClick={handleTrainingSave}
+            variant="contained"
+            color="primary"
+          >
+            Add Training
+          </Button>
         </DialogActions>
       </Dialog>
 
+      {/* ========== Snackbar for Notifications ========== */}
       <Snackbar
         open={Boolean(error)}
         autoHideDuration={6000}
@@ -635,13 +749,13 @@ function CustomerList() {
       >
         <Alert
           onClose={() => setError("")}
-          severity="error"
+          severity={error.includes("success") ? "success" : "error"}
           sx={{ width: "100%" }}
         >
           {error}
         </Alert>
       </Snackbar>
-    </div>
+    </Box>
   );
 }
 

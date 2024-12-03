@@ -10,12 +10,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@date-io/dayjs": "^3.0.0",
     "@emotion/react": "^11.13.5",
     "@emotion/styled": "^11.13.5",
     "@mui/icons-material": "^6.1.9",
     "@mui/material": "^6.1.9",
+    "@mui/x-date-pickers": "^7.23.0",
     "ag-grid-community": "^32.3.3",
     "ag-grid-react": "^32.3.3",
+    "dayjs": "^1.11.13",
     "personal-trainer": "file:",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

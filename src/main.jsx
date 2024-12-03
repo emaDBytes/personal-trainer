@@ -8,6 +8,7 @@ import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import App from "./App.jsx";
 import CustomerList from "./components/CustomerList.jsx";
 import TrainingList from "./components/TrainingList.jsx";
+import CalendarView from "./components/CalendarView.jsx";
 
 import "./index.css";
 
@@ -28,6 +29,10 @@ const router = createBrowserRouter([
       {
         path: "trainings",
         element: <TrainingList />,
+      },
+      {
+        path: "calendar",
+        element: <CalendarView />,
       },
     ],
   },

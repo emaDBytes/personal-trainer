@@ -13,6 +13,7 @@ function TopBar() {
         <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
           Personal Trainer
         </Typography>
+
         <Button
           color="inherit"
           component={Link}
@@ -24,6 +25,7 @@ function TopBar() {
         >
           Customers
         </Button>
+
         <Button
           color="inherit"
           component={Link}
@@ -36,6 +38,20 @@ function TopBar() {
           }}
         >
           Trainings
+        </Button>
+
+        <Button
+          color="inherit"
+          component={Link}
+          to="/calendar"
+          sx={{
+            color:
+              location.pathname === "/calendar"
+                ? "#fff"
+                : "rgba(255, 255, 255, 0.7)",
+          }}
+        >
+          Calendar
         </Button>
       </Toolbar>
     </AppBar>

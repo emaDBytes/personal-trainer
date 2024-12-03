@@ -11,6 +11,7 @@ import AddIcon from "@mui/icons-material/Add";
 import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
 import FitnessCenterIcon from "@mui/icons-material/FitnessCenter";
+import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
@@ -23,7 +24,11 @@ import Alert from "@mui/material/Alert";
 import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+
 import dayjs from "dayjs";
+
+import { utils as XLSXUtils, write as XLSXWrite } from "xlsx";
+import { saveAs } from "file-saver";
 
 function CustomerList() {
   const [customers, setCustomers] = useState([]);
@@ -268,6 +273,31 @@ function CustomerList() {
       });
   };
 
+  const exportToCSV = () => {
+    // Filter out unnecessary data and links
+    const exportData = customers.map((customer) => ({
+      firstname: customer.firstname,
+      lastname: customer.lastname,
+      email: customer.email,
+      phone: customer.phone,
+      streetaddress: customer.streetaddress,
+      postcode: customer.postcode,
+      city: customer.city,
+    }));
+
+    // Create worksheet and workbook
+    const ws = XLSXUtils.json_to_sheet(exportData);
+    const wb = XLSXUtils.book_new();
+    XLSXUtils.book_append_sheet(wb, ws, "Customers");
+
+    // Generate buffer
+    const excelBuffer = XLSXWrite(wb, { bookType: "csv", type: "array" });
+
+    // Create blob and save file
+    const data = new Blob([excelBuffer], { type: "application/octet-stream" });
+    saveAs(data, "customers.csv");
+  };
+
   const [columnDefs] = useState([
     { field: "firstname", sortable: true, filter: true, width: 130 },
     { field: "lastname", sortable: true, filter: true, width: 130 },
@@ -340,14 +370,22 @@ function CustomerList() {
     <div style={{ padding: "20px" }}>
       <h2>Customers</h2>
 
-      <Button
-        variant="contained"
-        onClick={handleAddOpen}
-        startIcon={<AddIcon />}
-        style={{ marginBottom: 20 }}
-      >
-        Add Customer
-      </Button>
+      <div style={{ marginBottom: 20, display: "flex", gap: "10px" }}>
+        <Button
+          variant="contained"
+          onClick={handleAddOpen}
+          startIcon={<AddIcon />}
+        >
+          Add Customer
+        </Button>
+        <Button
+          variant="outlined"
+          onClick={exportToCSV}
+          startIcon={<FileDownloadIcon />}
+        >
+          Export to CSV
+        </Button>
+      </div>
 
       <div
         className="ag-theme-material"
